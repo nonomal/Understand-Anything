@@ -37,6 +37,58 @@ Incrementally update the knowledge graph using deterministic structural fingerpr
    mkdir -p $PROJECT_ROOT/.understand-anything/intermediate
    ```
 
+9. **Apply `.understandignore` exclusions** (same semantics as `/understand` Step 2.5 in `agents/project-scanner.md`).
+
+   Without this step, files in user-excluded paths (migrations, vendored code, tests) are counted as structural changes and can spuriously escalate the action to `FULL_UPDATE` even when the real change set is tiny.
+
+   1. If neither `$PROJECT_ROOT/.understand-anything/.understandignore` nor `$PROJECT_ROOT/.understandignore` exists, the step 7 extension filter is sufficient — skip to Phase 1.
+
+   2. Write the step 7 file list to `$PROJECT_ROOT/.understand-anything/intermediate/changed-files-pre.json` as a JSON array of relative paths.
+
+   3. Resolve `$PLUGIN_ROOT`:
+      - Use `$CLAUDE_PLUGIN_ROOT` if set (Claude Code's hook context sets this).
+      - Otherwise try `$HOME/.understand-anything-plugin`.
+      - Validate the chosen candidate by checking `$candidate/packages/core/dist/ignore-filter.js` exists.
+      - If neither resolves: report "Cannot locate plugin install at `$CLAUDE_PLUGIN_ROOT` or `$HOME/.understand-anything-plugin`; auto-update aborted. Run `/understand` to re-baseline." and **STOP**. Do **not** silently skip — silent skip reproduces issue #153.
+
+   4. Write `$PROJECT_ROOT/.understand-anything/intermediate/ignore-filter.mjs`:
+      ```javascript
+      import { readFileSync, writeFileSync } from 'node:fs';
+      import { pathToFileURL } from 'node:url';
+      import path from 'node:path';
+
+      const PROJECT_ROOT = process.cwd();
+      const PLUGIN_ROOT = process.argv[2];
+      const inputPath = process.argv[3];
+
+      const modUrl = pathToFileURL(
+        path.join(PLUGIN_ROOT, 'packages/core/dist/ignore-filter.js'),
+      ).href;
+      const { createIgnoreFilter } = await import(modUrl);
+      const filter = createIgnoreFilter(PROJECT_ROOT);
+
+      const input = JSON.parse(readFileSync(inputPath, 'utf-8'));
+      const kept = input.filter((p) => !filter.isIgnored(p));
+      const removed = input.length - kept.length;
+
+      writeFileSync(
+        path.join(PROJECT_ROOT, '.understand-anything/intermediate/changed-files.json'),
+        JSON.stringify({ kept, removed, total: input.length }, null, 2),
+      );
+      console.log(`.understandignore: kept ${kept.length}/${input.length} (removed ${removed})`);
+      ```
+
+   5. Run it:
+      ```bash
+      node $PROJECT_ROOT/.understand-anything/intermediate/ignore-filter.mjs \
+        "$PLUGIN_ROOT" \
+        $PROJECT_ROOT/.understand-anything/intermediate/changed-files-pre.json
+      ```
+
+   6. Read `$PROJECT_ROOT/.understand-anything/intermediate/changed-files.json`. Pass the `kept` array as the input file list for Phase 1's fingerprint-check script.
+
+   7. If `kept.length === 0`: update `meta.json` with the new commit hash, report "All changed source files are in ignored paths. Metadata updated." and **STOP**.
+
 ---
 
 ## Phase 1 — Structural Fingerprint Check (Zero LLM Tokens)
@@ -188,12 +240,54 @@ Perform lightweight validation (no graph-reviewer agent):
    }
    ```
 
-3. **Update fingerprints:** Write and execute a Node.js script that:
-   - Reads the existing `fingerprints.json`
-   - For each re-analyzed file: computes new content hash and extracts structural elements via regex
-   - For deleted files: removes their entries
-   - Merges with existing fingerprints (keep unchanged files as-is)
-   - Writes updated `fingerprints.json`
+3. **Update fingerprints (LOAD-PATCH-SAVE, not OVERWRITE).**
+
+   The most common failure mode here: writing only the freshly-computed batch entries to `fingerprints.json`, discarding every other file's fingerprint. The next auto-update then sees all those files as new (no stored fingerprint), classifies them as STRUCTURAL, and escalates to FULL_UPDATE permanently (issue #152). The script must LOAD ALL existing entries, PATCH only the re-analyzed ones, and SAVE the full dict back.
+
+   Write and execute a Node.js script in this exact ordering:
+
+   ```javascript
+   import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+   import { createHash } from 'node:crypto';
+   import path from 'node:path';
+
+   const fpPath = path.join(PROJECT_ROOT, '.understand-anything', 'fingerprints.json');
+   const existedAndNonEmpty = existsSync(fpPath) && readFileSync(fpPath, 'utf-8').trim().length > 0;
+
+   // 1. LOAD ALL existing entries (NEVER skip — preserves un-analyzed files)
+   const all = existedAndNonEmpty
+     ? JSON.parse(readFileSync(fpPath, 'utf-8'))
+     : {};
+   const before = Object.keys(all).length;
+
+   // 2. PATCH (file still exists) or REMOVE (file deleted) for each re-analyzed path.
+   //    `filesToReanalyze` may include paths that were deleted in this commit —
+   //    handle both branches inline rather than expecting a separate deleted list.
+   for (const filePath of filesToReanalyze) {
+     const fullPath = path.join(PROJECT_ROOT, filePath);
+     if (!existsSync(fullPath)) {
+       delete all[filePath];
+       continue;
+     }
+     const content = readFileSync(fullPath, 'utf-8');
+     const contentHash = createHash('sha256').update(content).digest('hex');
+     // Extract functions, classes, imports, exports via the same regex as Phase 1.
+     all[filePath] = { contentHash, functions, classes, imports, exports };
+   }
+
+   // 3. GUARD against silent load failure: if fingerprints.json existed and was
+   //    non-empty but `before` came out as 0, refuse to overwrite — something
+   //    went wrong reading the file and writing now would clobber every entry.
+   if (existedAndNonEmpty && before === 0) {
+     throw new Error('fingerprints.json existed and was non-empty but loaded as {} — refusing to overwrite');
+   }
+
+   // 4. SAVE ALL entries back (full dict — not just the patched subset)
+   writeFileSync(fpPath, JSON.stringify(all, null, 2));
+   console.log(`Fingerprints: ${before} → ${Object.keys(all).length}`);
+   ```
+
+   The `existedAndNonEmpty && before === 0` guard catches the silent-load-failure case before it corrupts the store. If the count shrinks from N to a small number that matches the batch size, the LOAD step was skipped — abort the write rather than persist the wrong dict.
 
 4. Clean up intermediate files:
    ```bash

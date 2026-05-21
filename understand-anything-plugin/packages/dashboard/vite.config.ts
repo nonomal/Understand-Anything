@@ -9,7 +9,7 @@ import crypto from "crypto";
 // Generate a one-time token when the server process starts.
 // This token is printed to the terminal and must be in the URL
 // to fetch knowledge-graph.json or diff-overlay.json.
-const ACCESS_TOKEN = crypto.randomBytes(16).toString("hex");
+const ACCESS_TOKEN = process.env.UNDERSTAND_ACCESS_TOKEN || crypto.randomBytes(16).toString("hex");
 const MAX_SOURCE_FILE_BYTES = 1024 * 1024;
 
 function graphFileCandidates(fileName: string): string[] {
@@ -252,6 +252,7 @@ export default defineConfig({
             pathname === "/domain-graph.json" ||
             pathname === "/diff-overlay.json" ||
             pathname === "/meta.json" ||
+            pathname === "/config.json" ||
             pathname === "/file-content.json";
 
           if (!isProtectedEndpoint) {
@@ -269,6 +270,24 @@ export default defineConfig({
           if (pathname === "/file-content.json") {
             const result = readSourceFile(url);
             sendJson(res, result.statusCode, result.payload);
+            return;
+          }
+
+          if (pathname === "/config.json") {
+            const configCandidates = graphFileCandidates("config.json");
+            for (const candidate of configCandidates) {
+              if (fs.existsSync(candidate)) {
+                try {
+                  const raw = JSON.parse(fs.readFileSync(candidate, "utf-8"));
+                  sendJson(res, 200, raw);
+                  return;
+                } catch {
+                  sendJson(res, 500, { error: "Failed to read config file" });
+                  return;
+                }
+              }
+            }
+            sendJson(res, 200, { autoUpdate: false, outputLanguage: "en" });
             return;
           }
 

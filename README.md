@@ -7,17 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> | <a href="READMEs/README.zh-CN.md">简体中文</a> | <a href="READMEs/README.zh-TW.md">繁體中文</a> | <a href="READMEs/README.ja-JP.md">日本語</a> | <a href="READMEs/README.ko-KR.md">한국어</a> | <a href="READMEs/README.es-ES.md">Español</a> | <a href="READMEs/README.tr-TR.md">Türkçe</a>
-</p>
-
-<p align="center">
- <a href="https://www.star-history.com/lum1104/understand-anything">
-  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Lum1104/Understand-Anything&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Lum1104/Understand-Anything" />
-   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Lum1104/Understand-Anything" />
-  </picture>
- </a>
+  <a href="README.md">English</a> | <a href="READMEs/README.zh-CN.md">简体中文</a> | <a href="READMEs/README.zh-TW.md">繁體中文</a> | <a href="READMEs/README.ja-JP.md">日本語</a> | <a href="READMEs/README.ko-KR.md">한국어</a> | <a href="READMEs/README.es-ES.md">Español</a> | <a href="READMEs/README.tr-TR.md">Türkçe</a> | <a href="READMEs/README.ru-RU.md">Русский</a>
 </p>
 
 <p align="center">
@@ -46,14 +36,11 @@
 
 ---
 
-> [!TIP]
-> **A huge thank you to the community!** The support for Understand-Anything has been incredible. If this tool saves you a few minutes of digging through complexity, that's all I wanted. 🚀
-
 **You just joined a new team. The codebase is 200,000 lines of code. Where do you even start?**
 
 Understand Anything is a [Claude Code Plugin](https://code.claude.com/docs/en/plugins-reference#plugins-reference) that analyzes your project with a multi-agent pipeline, builds a knowledge graph of every file, function, class, and dependency, then gives you an interactive dashboard to explore it all visually. Stop reading code blind. Start seeing the big picture.
 
-> **Graphs that teach > graphs that impress.**
+> **The goal isn't a graph that wows you with how complex your codebase is — it's a graph that quietly teaches you how every piece fits together.**
 
 ---
 
@@ -66,17 +53,9 @@ Understand Anything is a [Claude Code Plugin](https://code.claude.com/docs/en/pl
 
 Navigate your codebase as an interactive knowledge graph — every file, function, and class is a node you can click, search, and explore. Select any node to see plain-English summaries, relationships, and guided tours.
 
-<p align="center">
-  <img src="assets/overview-structural.gif" alt="Structural graph — explore files, functions, classes and their relationships" width="750" />
-</p>
-
 ### Understand business logic
 
 Switch to the domain view and see how your code maps to real business processes — domains, flows, and steps laid out as a horizontal graph.
-
-<p align="center">
-  <img src="assets/overview-domain.gif" alt="Domain graph — business domains, flows, and process steps" width="750" />
-</p>
 
 ### Analyze knowledge bases
 
@@ -134,6 +113,20 @@ Point `/understand-knowledge` at a [Karpathy-pattern LLM wiki](https://gist.gith
 
 A multi-agent pipeline scans your project, extracts every file, function, class, and dependency, then builds a knowledge graph saved to `.understand-anything/knowledge-graph.json`.
 
+**Localized output:** Use `--language` to generate content in your preferred language:
+
+```bash
+# Generate Chinese content (知识图节点描述和 Dashboard UI)
+/understand --language zh
+
+# Supported languages: en (default), zh, zh-TW, ja, ko, ru
+```
+
+The `--language` parameter affects:
+- Node summaries and descriptions in the knowledge graph
+- Dashboard UI labels, buttons, and tooltips
+- Guided tour explanations
+
 ### 3. Explore the dashboard
 
 ```bash
@@ -177,7 +170,7 @@ Understand-Anything works across multiple AI coding platforms.
 /plugin install understand-anything
 ```
 
-### One-line install (Codex / OpenCode / OpenClaw / Antigravity / Gemini CLI / Pi Agent / Vibe CLI / VS Code Copilot)
+### One-line install (Codex / OpenCode / OpenClaw / Antigravity / Gemini CLI / Pi Agent / Vibe CLI / VS Code Copilot / Hermes / Cline / KIMI CLI)
 
 **macOS / Linux:**
 ```bash
@@ -193,7 +186,7 @@ iwr -useb https://raw.githubusercontent.com/Lum1104/Understand-Anything/main/ins
 
 The installer clones the repo to `~/.understand-anything/repo` and creates the right symlinks for the chosen platform. Restart your CLI/IDE afterwards.
 
-- Supported `<platform>` values: `gemini`, `codex`, `opencode`, `pi`, `openclaw`, `antigravity`, `vibe`, `vscode`
+- Supported `<platform>` values: `gemini`, `codex`, `opencode`, `pi`, `openclaw`, `antigravity`, `vibe`, `vscode`, `hermes`, `cline`, `kimi`
 - Update later: `./install.sh --update`
 - Uninstall: `./install.sh --uninstall <platform>`
 
@@ -228,6 +221,9 @@ copilot plugin install Lum1104/Understand-Anything:understand-anything-plugin
 | Gemini CLI | ✅ Supported | `install.sh gemini` |
 | Pi Agent | ✅ Supported | `install.sh pi` |
 | Vibe CLI | ✅ Supported | `install.sh vibe` |
+| Hermes | ✅ Supported | `install.sh hermes` |
+| Cline | ✅ Supported | `install.sh cline` |
+| KIMI CLI | ✅ Supported | `install.sh kimi` |
 
 ---
 
@@ -302,6 +298,10 @@ Please open an issue first for major changes so we can discuss the approach.
    <img alt="Star History Chart" src="https://api.star-history.com/image?repos=Lum1104/Understand-Anything&type=date&legend=top-left" />
  </picture>
 </a>
+
+<p align="center">
+  <em>Thanks to everyone who's used and contributed — knowing this saves people time is what made it worth building.</em>
+</p>
 
 <p align="center">
   MIT License &copy; <a href="https://github.com/Lum1104">Lum1104</a>
